@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "amqplib": "^0.5.2",
+    "redis": "^2.8.0",
     "winston": "^3.0.0-rc1",
     "youtube-downloader-core": "https://github.com/cristianrgreco/youtube-downloader-core"
   },
