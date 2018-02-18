@@ -11,6 +11,7 @@ const createChannel = queueName => new Promise(async resolve => {
       const connection = await amqplib.connect(url)
       const channel = await connection.createChannel()
       await channel.assertQueue(queueName, {durable: false, autoDelete: true})
+      logger.debug(`connection to rabbit on queue ${queueName}`)
       return resolve(channel)
     } catch (e) {
       setTimeout(() => attempt(attempts + 1), reconnectDelay)
@@ -23,9 +24,9 @@ const onRequest = async handler => {
   logger.debug('binding handler to request messages')
   const channel = await createRequestsChannel()
   await channel.consume(requestsQueueName, async message => {
-    const url = message.content.toString()
-    logger.debug(`request received for url: ${url}`)
-    await handler(url)
+    const payload = message.content.toString()
+    logger.debug(`request received: ${payload}`)
+    await handler(JSON.parse(payload))
     channel.ack(message)
   })
 }
