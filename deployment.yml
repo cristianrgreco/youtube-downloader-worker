@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media-pv-claim
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 250Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: youtube-downloader-worker-deployment
+spec:
+  selector:
+    matchLabels:
+      app: youtube-downloader-worker
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: youtube-downloader-worker
+    spec:
+      containers:
+      - name: youtube-downloader-worker
+        image: youtube-downloader-worker:latest
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: media-persistent-storage
+          mountPath: /data/media-storage
+        env:
+        - name: RABBIT_HOST
+          value: rabbitmq
+        - name: REDIS_HOST
+          value: redis
+        - name: REDIS_PORT
+          value: "6379"
+        - name: DOWNLOAD_DIR
+          value: /data/media-storage
+        - name: YOUTUBE_BINARY_PATH
+          value: /usr/src/app/bin/youtube-dl
+        - name: FFMPEG_BINARY_PATH
+          value: /usr/src/app/bin/ffmpeg
+      volumes:
+      - name: media-persistent-storage
+        persistentVolumeClaim:
+          claimName: media-pv-claim
