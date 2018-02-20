@@ -17,21 +17,18 @@ const {onRequest} = require('./rabbit');
   const redisGet = promisify(redisClient.get).bind(redisClient)
   const redisSet = promisify(redisClient.set).bind(redisClient)
 
+  logger.info('waiting for requests')
   await onRequest(async ({url, type}) => {
-    logger.debug(`querying cache for ${url}`)
+    logger.debug(`cache lookup for: ${url}`)
     const cachedFilename = await redisGet(url)
     if (cachedFilename) {
-      logger.info(`cache hit for ${url}: ${cachedFilename}`)
+      logger.info(`cache hit for: ${url}: ${cachedFilename}`)
       return
     }
 
-    logger.debug(`getting title for ${url}`)
-    const title = await getTitle(url)
-    logger.info(`title for ${url} is ${title}`)
-
-    logger.debug(`getting filename for ${url}`)
-    const filename = await getFilename(url)
-    logger.info(`filename for ${url} is ${filename}`)
+    logger.debug(`getting title and filename for: ${url}`)
+    const [title, filename] = await Promise.all([getTitle(url), getFilename(url)])
+    logger.info(`title and filename for ${url}: ${title}, ${filename}`)
 
     const download = type === 'audio' ? downloadAudio(url) : downloadVideo(url)
     download
