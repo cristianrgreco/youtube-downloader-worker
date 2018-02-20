@@ -31,6 +31,8 @@ spec:
         - name: media-persistent-storage
           mountPath: /data/media-storage
         env:
+        - name: LOG_LEVEL
+          value: debug
         - name: RABBIT_HOST
           value: rabbitmq
         - name: REDIS_HOST
