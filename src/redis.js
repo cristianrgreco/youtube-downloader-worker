@@ -4,17 +4,17 @@ const {logger} = require('./logger')
 const {redis: {host, port, password}} = require('./conf')
 
 const connect = () => {
-  logger.log('info', 'connecting to redis', {host, port, password})
+  logger.log('debug', 'connecting to redis', {host, port, password})
 
-  const redisClient = redis.createClient(port, host)
+  const client = redis.createClient(port, host)
   if (password) {
-    redisClient.auth(password)
+    client.auth(password)
   }
 
-  logger.log('info', 'connected to redis')
+  logger.log('debug', 'connected to redis')
 
-  const get = promisify(redisClient.get).bind(redisClient)
-  const set = promisify(redisClient.set).bind(redisClient)
+  const get = promisify(client.get).bind(client)
+  const set = promisify(client.set).bind(client)
 
   return {
     get,
