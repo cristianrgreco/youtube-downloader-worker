@@ -39,7 +39,7 @@ const {
 
     const download = type === 'audio' ? downloadAudio(url) : downloadVideo(url)
     download
-      .on('state', state => logger.log('debug', 'state has changed', {state}))
+      .on('state', state => logger.log('info', 'state has changed', {state}))
       .on('progress', progress => logger.log('debug', 'process has changed', {progress}))
       .on('complete', async () => {
         logger.log('info', 'download complete', {url})
