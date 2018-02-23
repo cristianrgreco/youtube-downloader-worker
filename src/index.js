@@ -12,36 +12,39 @@ const {
 } = require('youtube-downloader-core');
 
 (async () => {
-  logger.info('connecting to redis')
+  const {host: redisHost, port: redisPort, password: redisPassword} = conf.redis
+  logger.log('info', 'connecting to redis', {host: redisHost, port: redisPort, pass: redisPassword})
+
   const redisClient = redis.createClient(conf.redis.port, conf.redis.host)
-  if (redis.password) {
-    redisClient.auth(conf.redis.pass)
+  if (redisPassword) {
+    redisClient.auth(redisPassword)
   }
+  logger.log('info', 'connected to redis')
 
   const redisGet = promisify(redisClient.get).bind(redisClient)
   const redisSet = promisify(redisClient.set).bind(redisClient)
 
-  logger.info('waiting for requests')
+  logger.log('info', 'standing by for requests')
   await onRequest(async ({url, type}) => {
-    logger.debug(`cache lookup for: ${url}`)
+    logger.log('debug', 'cache lookup', {url})
     const cachedFilename = await redisGet(url)
     if (cachedFilename) {
-      logger.info(`cache hit for: ${url}: ${cachedFilename}`)
+      logger.log('info', 'cache hit', {url, cachedFilename})
       return
     }
 
-    logger.debug(`getting title and filename for: ${url}`)
+    logger.log('debug', 'getting title and filename', {url})
     const [title, filename] = await Promise.all([getTitle(url), getFilename(url)])
-    logger.info(`title and filename for ${url}: ${title}, ${filename}`)
+    logger.log('info', 'title and filename', {url, title, filename})
 
     const download = type === 'audio' ? downloadAudio(url) : downloadVideo(url)
     download
       .on('state', state => logger.debug(state))
       .on('progress', progress => logger.debug(progress))
       .on('complete', async () => {
-        logger.info(`download complete for ${url}`)
+        logger.log('info', 'download complete', {url})
         await redisSet(url, filename)
-        logger.debug(`caching ${url}`)
+        logger.log('debug', 'persisting to cache', {url, filename})
       })
       .on('error', error => logger.error(error))
   })
