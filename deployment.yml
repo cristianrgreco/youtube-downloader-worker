@@ -34,11 +34,25 @@ spec:
         - name: LOG_LEVEL
           value: debug
         - name: RABBIT_HOST
-          value: rabbitmq
+          value: wayfaring-eel-rabbitmq
+        - name: RABBIT_PORT
+          value: "5672"
+        - name: RABBIT_USER
+          value: user
+        - name: RABBIT_PASS
+          valueFrom:
+            secretKeyRef:
+              name: wayfaring-eel-rabbitmq
+              key: rabbitmq-password
         - name: REDIS_HOST
-          value: redis
+          value: old-otter-redis
         - name: REDIS_PORT
           value: "6379"
+        - name: REDIS_PASS
+          valueFrom:
+            secretKeyRef:
+              name: old-otter-redis
+              key: redis-password
         - name: DOWNLOAD_DIR
           value: /data/media-storage
         - name: YOUTUBE_BINARY_PATH

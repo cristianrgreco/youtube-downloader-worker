@@ -1,19 +1,23 @@
+const redis = require('redis')
+const {promisify} = require('util')
+const {logger} = require('./logger')
+const conf = require('./conf')
+const {onRequest} = require('./rabbit')
+
 const {
   getTitle,
   getFilename,
   downloadVideo,
   downloadAudio
-} = require('youtube-downloader-core')
-
-const redis = require('redis')
-const {promisify} = require('util')
-const {logger} = require('./logger')
-const conf = require('./conf')
-const {onRequest} = require('./rabbit');
+} = require('youtube-downloader-core');
 
 (async () => {
   logger.info('connecting to redis')
   const redisClient = redis.createClient(conf.redis.port, conf.redis.host)
+  if (redis.password) {
+    redisClient.auth(conf.redis.pass)
+  }
+
   const redisGet = promisify(redisClient.get).bind(redisClient)
   const redisSet = promisify(redisClient.set).bind(redisClient)
 

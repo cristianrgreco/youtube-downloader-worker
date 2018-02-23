@@ -1,11 +1,25 @@
+const {
+  LOG_LEVEL,
+  REDIS_HOST,
+  REDIS_PORT,
+  REDIS_PASS,
+  RABBIT_HOST,
+  RABBIT_PORT,
+  RABBIT_USER,
+  RABBIT_PASS
+} = process.env
+
 module.exports = {
-  logLevel: process.env.LOG_LEVEL || 'info',
+  logLevel: LOG_LEVEL || 'info',
   redis: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: process.env.REDIS_PORT || 6379
+    host: REDIS_HOST || 'localhost',
+    port: REDIS_PORT || 6379,
+    password: REDIS_PASS || null
   },
   rabbit: {
-    url: process.env.RABBIT_HOST === undefined ? 'amqp://localhost' : `amqp://${process.env.RABBIT_HOST}`,
+    url: RABBIT_HOST === undefined
+      ? 'amqp://localhost'
+      : `amqp://${RABBIT_USER}:${RABBIT_PASS}@${RABBIT_HOST}:${RABBIT_PORT}`,
     requestsQueueName: 'requests',
     responsesQueueName: 'responses',
     reconnectDelay: 3000
