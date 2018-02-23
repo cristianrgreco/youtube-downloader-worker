@@ -12,16 +12,16 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: youtube-downloader-worker-deployment
+  name: worker
 spec:
   selector:
     matchLabels:
-      app: youtube-downloader-worker
+      app: worker
   replicas: 2
   template:
     metadata:
       labels:
-        app: youtube-downloader-worker
+        app: worker
     spec:
       containers:
       - name: youtube-downloader-worker
@@ -34,7 +34,7 @@ spec:
         - name: LOG_LEVEL
           value: debug
         - name: RABBIT_HOST
-          value: wayfaring-eel-rabbitmq
+          value: rabbitmq-rabbitmq
         - name: RABBIT_PORT
           value: "5672"
         - name: RABBIT_USER
@@ -42,16 +42,16 @@ spec:
         - name: RABBIT_PASS
           valueFrom:
             secretKeyRef:
-              name: wayfaring-eel-rabbitmq
+              name: rabbitmq-rabbitmq
               key: rabbitmq-password
         - name: REDIS_HOST
-          value: old-otter-redis
+          value: redis-redis
         - name: REDIS_PORT
           value: "6379"
         - name: REDIS_PASS
           valueFrom:
             secretKeyRef:
-              name: old-otter-redis
+              name: redis-redis
               key: redis-password
         - name: DOWNLOAD_DIR
           value: /data/media-storage
