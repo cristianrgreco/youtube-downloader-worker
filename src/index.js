@@ -14,7 +14,6 @@ const {
   const redis = connectToRedis()
   logger.log('info', 'connected to redis')
 
-  logger.log('debug', 'registering request handler')
   await onRequest(request => requestHandler(redis, request))
   logger.log('info', 'standing by for requests')
 })()
