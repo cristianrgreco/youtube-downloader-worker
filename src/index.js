@@ -58,6 +58,26 @@ const consumeRequests = async (rabbit, redis) => {
   })
 }
 
+const publishCachedResponse = (key, cachedResponse, responseChannel, responseExchange, {url, type}) => {
+  logger.info('request resolved from cache', {request: {url, type}, cachedResponse})
+
+  responseChannel.publish(
+    responseExchange,
+    key,
+    Buffer.from(JSON.stringify({key, type: 'TITLE', payload: cachedResponse.title}))
+  )
+  responseChannel.publish(
+    responseExchange,
+    key,
+    Buffer.from(JSON.stringify({key, type: 'STATE', payload: {id: 4, text: 'COMPLETE'}}))
+  )
+  responseChannel.publish(
+    responseExchange,
+    key,
+    Buffer.from(JSON.stringify({key, type: 'PROGRESS', payload: {percentageComplete: '100%'}}))
+  )
+}
+
 const publishResponses = async (rabbit, redis, {message, requestsChannel}, {url, type}) => {
   const responseChannel = await rabbit.createChannel()
   const responseExchange = 'responses'
@@ -67,25 +87,12 @@ const publishResponses = async (rabbit, redis, {message, requestsChannel}, {url,
   const cached = await redis.get(key)
 
   if (cached) {
-    const cachedValue = JSON.parse(cached)
-    logger.info('request resolved from cache', {url, cachedValue})
+    const cachedResponse = JSON.parse(cached)
+    logger.info('request resolved from cache', {url, cachedValue: cachedResponse})
 
-    responseChannel.publish(
-      responseExchange,
-      key,
-      Buffer.from(JSON.stringify({key, type: 'TITLE', payload: cached.title}))
-    )
-    responseChannel.publish(
-      responseExchange,
-      key,
-      Buffer.from(JSON.stringify({key, type: 'STATE', payload: {id: 4, text: 'COMPLETE'}}))
-    )
-    responseChannel.publish(
-      responseExchange,
-      key,
-      Buffer.from(JSON.stringify({key, type: 'PROGRESS', payload: {percentageComplete: '100%'}}))
-    )
+    publishCachedResponse(key, cachedResponse, responseChannel, responseExchange, {url, type})
     requestsChannel.ack(message)
+
     return
   }
 
