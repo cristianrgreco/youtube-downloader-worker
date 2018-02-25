@@ -3,7 +3,6 @@ const amqplib = require('amqplib')
 const {promisify} = require('util')
 const conf = require('./conf')
 const {logger} = require('./logger')
-
 const {getTitle, getFilename, downloadVideo, downloadAudio} = require('youtube-downloader-core')
 
 const connectToRedis = () => {
