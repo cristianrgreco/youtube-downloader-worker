@@ -53,13 +53,7 @@ const consumeRequests = async (rabbit, redis) => {
   })
 }
 
-const publishCachedResponse = (
-  key,
-  cachedResponse,
-  responseChannel,
-  responseExchange,
-  {url, type}
-) => {
+const publishCachedResponse = (key, cachedResponse, responseChannel, responseExchange, {url, type}) => {
   logger.info('request resolved from cache', {request: {url, type}, cachedResponse})
 
   responseChannel.publish(
@@ -100,11 +94,7 @@ const publishResponses = async (rabbit, redis, {message, requestsChannel}, {url,
   responseChannel.assertExchange(responseExchange, 'topic', {durable: false})
 
   const title = await getTitle(url)
-  responseChannel.publish(
-    responseExchange,
-    key,
-    Buffer.from(JSON.stringify({key, type: 'TITLE', payload: title}))
-  )
+  responseChannel.publish(responseExchange, key, Buffer.from(JSON.stringify({key, type: 'TITLE', payload: title})))
 
   const filename = await getFilename(url)
   logger.info('request resolved', {url, filename})
@@ -112,11 +102,7 @@ const publishResponses = async (rabbit, redis, {message, requestsChannel}, {url,
   const download = type === 'AUDIO' ? downloadAudio(url) : downloadVideo(url)
   download
     .on('state', state => {
-      responseChannel.publish(
-        responseExchange,
-        key,
-        Buffer.from(JSON.stringify({key, type: 'STATE', payload: state}))
-      )
+      responseChannel.publish(responseExchange, key, Buffer.from(JSON.stringify({key, type: 'STATE', payload: state})))
     })
     .on('progress', progress => {
       responseChannel.publish(
@@ -134,11 +120,11 @@ const publishResponses = async (rabbit, redis, {message, requestsChannel}, {url,
     })
 }
 
-;(async () => {
+const main = async () => {
   const redis = await connectToRedis()
   const rabbit = await connectToRabbit()
 
   await consumeRequests(rabbit, redis)
+}
 
-  logger.info('ready')
-})()
+main().then(() => logger.info('ready'), e => logger.error(e.stack))
