@@ -3,7 +3,12 @@ const amqplib = require('amqplib')
 const {promisify} = require('util')
 const conf = require('./conf')
 const {logger} = require('./logger')
-const {getTitle, getFilename, downloadVideo, downloadAudio} = require('youtube-downloader-core')
+const {
+  getTitle,
+  getFilename,
+  downloadVideo,
+  downloadAudio
+} = require('youtube-downloader-core')
 
 const connectToRedis = () => {
   const {redis: {host, port, password}} = conf
@@ -48,31 +53,60 @@ const consumeRequests = async (rabbit, redis) => {
     const {url, type} = JSON.parse(message.content.toString())
     logger.info('request received', {url, type})
 
-    await publishResponses(rabbit, redis, {message, requestsChannel}, {url, type})
+    await publishResponses(
+      rabbit,
+      redis,
+      {message, requestsChannel},
+      {url, type}
+    )
   })
 }
 
-const publishCachedResponse = (key, cachedResponse, responseChannel, responseExchange, {url, type}) => {
-  logger.info('request resolved from cache', {request: {url, type}, cachedResponse})
+const publishCachedResponse = (
+  key,
+  cachedResponse,
+  responseChannel,
+  responseExchange,
+  {url, type}
+) => {
+  logger.info('request resolved from cache', {
+    request: {url, type},
+    cachedResponse
+  })
 
   responseChannel.publish(
     responseExchange,
     key,
-    Buffer.from(JSON.stringify({key, type: 'TITLE', payload: cachedResponse.title}))
+    Buffer.from(
+      JSON.stringify({key, type: 'TITLE', payload: cachedResponse.title})
+    )
   )
   responseChannel.publish(
     responseExchange,
     key,
-    Buffer.from(JSON.stringify({key, type: 'STATE', payload: {id: 4, text: 'COMPLETE'}}))
+    Buffer.from(
+      JSON.stringify({key, type: 'STATE', payload: {id: 4, text: 'COMPLETE'}})
+    )
   )
   responseChannel.publish(
     responseExchange,
     key,
-    Buffer.from(JSON.stringify({key, type: 'PROGRESS', payload: {percentageComplete: '100%'}}))
+    Buffer.from(
+      JSON.stringify({
+        key,
+        type: 'PROGRESS',
+        payload: {percentageComplete: '100%'}
+      })
+    )
   )
 }
 
-const publishResponses = async (rabbit, redis, {message, requestsChannel}, {url, type}) => {
+const publishResponses = async (
+  rabbit,
+  redis,
+  {message, requestsChannel},
+  {url, type}
+) => {
   const responseChannel = await rabbit.createChannel()
   const responseExchange = 'responses'
   const key = `${Buffer.from(url).toString('base64')}.${type}`
@@ -82,9 +116,18 @@ const publishResponses = async (rabbit, redis, {message, requestsChannel}, {url,
 
   if (cached) {
     const cachedResponse = JSON.parse(cached)
-    logger.info('request resolved from cache', {url, cachedValue: cachedResponse})
+    logger.info('request resolved from cache', {
+      url,
+      cachedValue: cachedResponse
+    })
 
-    publishCachedResponse(key, cachedResponse, responseChannel, responseExchange, {url, type})
+    publishCachedResponse(
+      key,
+      cachedResponse,
+      responseChannel,
+      responseExchange,
+      {url, type}
+    )
     requestsChannel.ack(message)
 
     return
@@ -93,7 +136,11 @@ const publishResponses = async (rabbit, redis, {message, requestsChannel}, {url,
   responseChannel.assertExchange(responseExchange, 'topic', {durable: false})
 
   const title = await getTitle(url)
-  responseChannel.publish(responseExchange, key, Buffer.from(JSON.stringify({key, type: 'TITLE', payload: title})))
+  responseChannel.publish(
+    responseExchange,
+    key,
+    Buffer.from(JSON.stringify({key, type: 'TITLE', payload: title}))
+  )
 
   const filename = await getFilename(url)
   logger.info('request resolved', {url, filename})
@@ -101,7 +148,11 @@ const publishResponses = async (rabbit, redis, {message, requestsChannel}, {url,
   const download = type === 'AUDIO' ? downloadAudio(url) : downloadVideo(url)
   download
     .on('state', state => {
-      responseChannel.publish(responseExchange, key, Buffer.from(JSON.stringify({key, type: 'STATE', payload: state})))
+      responseChannel.publish(
+        responseExchange,
+        key,
+        Buffer.from(JSON.stringify({key, type: 'STATE', payload: state}))
+      )
     })
     .on('progress', progress => {
       responseChannel.publish(
