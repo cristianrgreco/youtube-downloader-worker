@@ -1,43 +1,128 @@
+const redis = require('redis')
+const amqplib = require('amqplib')
+const {promisify} = require('util')
+const conf = require('./conf')
 const {logger} = require('./logger')
-const {onRequest} = require('./rabbit')
-const {connect: connectToRedis} = require('./redis')
 
 const {
   getTitle,
   getFilename,
   downloadVideo,
   downloadAudio
-} = require('youtube-downloader-core');
+} = require('youtube-downloader-core')
 
-(async () => {
-  logger.log('info', 'connecting to redis')
-  const redis = connectToRedis()
-  logger.log('info', 'connected to redis')
+const connectToRedis = () => {
+  const {redis: {host, port, password}} = conf
+  logger.info('connecting to redis', {host, port, password})
 
-  await onRequest(request => requestHandler(redis, request))
-  logger.log('info', 'standing by for requests')
-})()
-
-const requestHandler = async (redis, {url, type}) => {
-  logger.log('debug', 'cache lookup', {url})
-  const cachedFilename = await redis.get(url)
-  if (cachedFilename) {
-    logger.log('info', 'cache hit', {url, cachedFilename})
-    return
+  const client = redis.createClient(port, host)
+  if (password) {
+    client.auth(password)
   }
 
-  logger.log('debug', 'getting title and filename', {url})
-  const [title, filename] = await Promise.all([getTitle(url), getFilename(url)])
-  logger.log('info', 'title and filename', {url, title, filename})
+  return {
+    get: promisify(client.get).bind(client),
+    set: promisify(client.set).bind(client)
+  }
+}
+
+const connectToRabbit = async () => {
+  const {rabbit: {url, reconnectDelay}} = conf
+  logger.info('connecting to rabbit', {url})
+
+  return new Promise(resolve => {
+    const connect = async (attempt = 1) => {
+      try {
+        logger.debug('connecting to rabbit', {attempt})
+        resolve(await amqplib.connect(url))
+      } catch (e) {
+        setTimeout(() => connect(attempt + 1), reconnectDelay)
+      }
+    }
+    return connect()
+  })
+}
+
+const consumeRequests = async rabbit => {
+  const requestsChannel = await rabbit.createChannel()
+  const requestsQueue = 'requests'
+
+  requestsChannel.assertQueue(requestsQueue, {durable: true})
+  requestsChannel.prefetch(1)
+
+  requestsChannel.consume(requestsQueue, async message => {
+    const {url, type} = JSON.parse(message.content.toString())
+    logger.info('request received', {url, type})
+    requestsChannel.ack(message)
+
+    await publishResponses(rabbit, {url, type})
+  })
+}
+
+const publishResponses = async (rabbit, {url, type}) => {
+  const responseChannel = await rabbit.createChannel()
+  const responseExchange = 'responses'
+  const key = `${Buffer.from(url).toString('base64')}.${type}}`
+
+  responseChannel.assertExchange(responseExchange, 'topic', {durable: false})
+
+  const title = await getTitle(url)
+  responseChannel.publish(
+    responseExchange,
+    key,
+    Buffer.from(JSON.stringify({key, type: 'TITLE', payload: title}))
+  )
+
+  const filename = await getFilename(url)
+  logger.info('request resolved', {url, filename})
 
   const download = type === 'audio' ? downloadAudio(url) : downloadVideo(url)
   download
-    .on('error', error => logger.error(error))
-    .on('state', state => logger.log('info', 'state has changed', {state}))
-    .on('progress', progress => logger.log('debug', 'process has changed', {progress}))
-    .on('complete', async () => {
-      logger.log('info', 'download complete', {url})
-      await redis.get(url, filename)
-      logger.log('debug', 'persisting to cache', {url, filename})
+    .on('state', state => {
+      responseChannel.publish(
+        responseExchange,
+        key,
+        Buffer.from(JSON.stringify({key, type: 'STATE', payload: state}))
+      )
+    })
+    .on('progress', progress => {
+      responseChannel.publish(
+        responseExchange,
+        key,
+        Buffer.from(JSON.stringify({key, type: 'PROGRESS', payload: progress}))
+      )
     })
 }
+
+(async () => {
+  const redis = await connectToRedis()
+  const rabbit = await connectToRabbit()
+
+  await consumeRequests(rabbit)
+
+  logger.info('ready')
+})()
+
+// const requestHandler = async (redis, {url, type}) => {
+//   logger.log('debug', 'cache lookup', {url})
+//   const cachedFilename = await redis.get(url)
+//   if (cachedFilename) {
+//     logger.log('info', 'cache hit', {url, cachedFilename})
+//     return
+//   }
+//
+//   logger.log('debug', 'getting title and filename', {url})
+//   const [title, filename] = await Promise.all([getTitle(url), getFilename(url)])
+//   logger.log('info', 'title and filename', {url, title, filename})
+//
+//   const download = type === 'audio' ? downloadAudio(url) : downloadVideo(url)
+//   download
+//     .on('error', error => logger.error(error))
+//     .on('state', state => logger.log('info', 'state has changed', {state}))
+//     .on('progress', progress => logger.log('debug', 'process has changed', {progress}))
+//     .on('complete', async () => {
+//       logger.log('info', 'download complete', {url})
+//       await redis.get(url, filename)
+//       logger.log('debug', 'persisting to cache', {url, filename})
+//     })
+// }

@@ -20,8 +20,6 @@ module.exports = {
     url: RABBIT_HOST === undefined
       ? 'amqp://localhost'
       : `amqp://${RABBIT_USER}:${RABBIT_PASS}@${RABBIT_HOST}:${RABBIT_PORT}`,
-    requestsQueueName: 'requests',
-    responsesQueueName: 'responses',
     reconnectDelay: 3000
   }
 }

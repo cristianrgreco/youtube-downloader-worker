@@ -3337,9 +3337,9 @@ yargs@~3.10.0:
     decamelize "^1.0.0"
     window-size "0.1.0"
 
-"youtube-downloader-core@https://github.com/cristianrgreco/youtube-downloader-core":
+"youtube-downloader-core@https://github.com/cristianrgreco/youtube-downloader-core#34297b3":
   version "1.0.0"
-  resolved "https://github.com/cristianrgreco/youtube-downloader-core#b5f8e713f36accaa2bcdb9ca8c841b500b1c0869"
+  resolved "https://github.com/cristianrgreco/youtube-downloader-core#34297b3ec46234c6c25bb0b6519d34b077eebddd"
   dependencies:
     byline "^5.0.0"
     winston "^3.0.0-rc1"
