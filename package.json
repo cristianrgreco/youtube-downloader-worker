@@ -5,7 +5,8 @@
   "license": "MIT",
   "scripts": {
     "start": "node src",
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "format": "prettier --write 'src/**/*.{js,json}'"
   },
   "dependencies": {
     "amqplib": "^0.5.2",
@@ -20,6 +21,7 @@
     "eslint-plugin-node": "^6.0.0",
     "eslint-plugin-promise": "^3.6.0",
     "eslint-plugin-standard": "^3.0.1",
-    "jest": "^22.3.0"
+    "jest": "^22.3.0",
+    "prettier": "^1.10.2"
   }
 }

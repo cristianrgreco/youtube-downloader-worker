@@ -4,12 +4,7 @@ const {promisify} = require('util')
 const conf = require('./conf')
 const {logger} = require('./logger')
 
-const {
-  getTitle,
-  getFilename,
-  downloadVideo,
-  downloadAudio
-} = require('youtube-downloader-core')
+const {getTitle, getFilename, downloadVideo, downloadAudio} = require('youtube-downloader-core')
 
 const connectToRedis = () => {
   const {redis: {host, port, password}} = conf
@@ -58,7 +53,13 @@ const consumeRequests = async (rabbit, redis) => {
   })
 }
 
-const publishCachedResponse = (key, cachedResponse, responseChannel, responseExchange, {url, type}) => {
+const publishCachedResponse = (
+  key,
+  cachedResponse,
+  responseChannel,
+  responseExchange,
+  {url, type}
+) => {
   logger.info('request resolved from cache', {request: {url, type}, cachedResponse})
 
   responseChannel.publish(
@@ -133,7 +134,7 @@ const publishResponses = async (rabbit, redis, {message, requestsChannel}, {url,
     })
 }
 
-(async () => {
+;(async () => {
   const redis = await connectToRedis()
   const rabbit = await connectToRabbit()
 
