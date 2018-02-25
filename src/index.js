@@ -43,7 +43,7 @@ const connectToRabbit = async () => {
   })
 }
 
-const consumeRequests = async rabbit => {
+const consumeRequests = async (rabbit, redis) => {
   const requestsChannel = await rabbit.createChannel()
   const requestsQueue = 'requests'
 
@@ -54,14 +54,40 @@ const consumeRequests = async rabbit => {
     const {url, type} = JSON.parse(message.content.toString())
     logger.info('request received', {url, type})
 
-    await publishResponses(rabbit, {message, requestsChannel}, {url, type})
+    await publishResponses(rabbit, redis, {message, requestsChannel}, {url, type})
   })
 }
 
-const publishResponses = async (rabbit, {message, requestsChannel}, {url, type}) => {
+const publishResponses = async (rabbit, redis, {message, requestsChannel}, {url, type}) => {
   const responseChannel = await rabbit.createChannel()
   const responseExchange = 'responses'
   const key = `${Buffer.from(url).toString('base64')}.${type}`
+
+  logger.debug('querying cache', {key})
+  const cached = await redis.get(key)
+
+  if (cached) {
+    const cachedValue = JSON.parse(cached)
+    logger.info('request resolved from cache', {url, cachedValue})
+
+    responseChannel.publish(
+      responseExchange,
+      key,
+      Buffer.from(JSON.stringify({key, type: 'TITLE', payload: cached.title}))
+    )
+    responseChannel.publish(
+      responseExchange,
+      key,
+      Buffer.from(JSON.stringify({key, type: 'STATE', payload: {id: 4, text: 'COMPLETE'}}))
+    )
+    responseChannel.publish(
+      responseExchange,
+      key,
+      Buffer.from(JSON.stringify({key, type: 'PROGRESS', payload: {percentageComplete: '100%'}}))
+    )
+    requestsChannel.ack(message)
+    return
+  }
 
   responseChannel.assertExchange(responseExchange, 'topic', {durable: false})
 
@@ -91,7 +117,11 @@ const publishResponses = async (rabbit, {message, requestsChannel}, {url, type})
         Buffer.from(JSON.stringify({key, type: 'PROGRESS', payload: progress}))
       )
     })
-    .on('complete', () => {
+    .on('complete', async () => {
+      const cachedValue = {title, filename}
+      logger.debug('persisting to cache', {key, value: cachedValue})
+      await redis.set(key, JSON.stringify(cachedValue))
+
       requestsChannel.ack(message)
     })
 }
@@ -100,7 +130,7 @@ const publishResponses = async (rabbit, {message, requestsChannel}, {url, type})
   const redis = await connectToRedis()
   const rabbit = await connectToRabbit()
 
-  await consumeRequests(rabbit)
+  await consumeRequests(rabbit, redis)
 
   logger.info('ready')
 })()
