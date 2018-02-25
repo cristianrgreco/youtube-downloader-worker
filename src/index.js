@@ -62,7 +62,7 @@ const consumeRequests = async rabbit => {
 const publishResponses = async (rabbit, {url, type}) => {
   const responseChannel = await rabbit.createChannel()
   const responseExchange = 'responses'
-  const key = `${Buffer.from(url).toString('base64')}.${type}}`
+  const key = `${Buffer.from(url).toString('base64')}.${type}`
 
   responseChannel.assertExchange(responseExchange, 'topic', {durable: false})
 
@@ -76,7 +76,7 @@ const publishResponses = async (rabbit, {url, type}) => {
   const filename = await getFilename(url)
   logger.info('request resolved', {url, filename})
 
-  const download = type === 'audio' ? downloadAudio(url) : downloadVideo(url)
+  const download = type === 'AUDIO' ? downloadAudio(url) : downloadVideo(url)
   download
     .on('state', state => {
       responseChannel.publish(
@@ -102,27 +102,3 @@ const publishResponses = async (rabbit, {url, type}) => {
 
   logger.info('ready')
 })()
-
-// const requestHandler = async (redis, {url, type}) => {
-//   logger.log('debug', 'cache lookup', {url})
-//   const cachedFilename = await redis.get(url)
-//   if (cachedFilename) {
-//     logger.log('info', 'cache hit', {url, cachedFilename})
-//     return
-//   }
-//
-//   logger.log('debug', 'getting title and filename', {url})
-//   const [title, filename] = await Promise.all([getTitle(url), getFilename(url)])
-//   logger.log('info', 'title and filename', {url, title, filename})
-//
-//   const download = type === 'audio' ? downloadAudio(url) : downloadVideo(url)
-//   download
-//     .on('error', error => logger.error(error))
-//     .on('state', state => logger.log('info', 'state has changed', {state}))
-//     .on('progress', progress => logger.log('debug', 'process has changed', {progress}))
-//     .on('complete', async () => {
-//       logger.log('info', 'download complete', {url})
-//       await redis.get(url, filename)
-//       logger.log('debug', 'persisting to cache', {url, filename})
-//     })
-// }
