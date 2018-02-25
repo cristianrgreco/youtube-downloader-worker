@@ -53,13 +53,12 @@ const consumeRequests = async rabbit => {
   requestsChannel.consume(requestsQueue, async message => {
     const {url, type} = JSON.parse(message.content.toString())
     logger.info('request received', {url, type})
-    requestsChannel.ack(message)
 
-    await publishResponses(rabbit, {url, type})
+    await publishResponses(rabbit, {message, requestsChannel}, {url, type})
   })
 }
 
-const publishResponses = async (rabbit, {url, type}) => {
+const publishResponses = async (rabbit, {message, requestsChannel}, {url, type}) => {
   const responseChannel = await rabbit.createChannel()
   const responseExchange = 'responses'
   const key = `${Buffer.from(url).toString('base64')}.${type}`
@@ -91,6 +90,9 @@ const publishResponses = async (rabbit, {url, type}) => {
         key,
         Buffer.from(JSON.stringify({key, type: 'PROGRESS', payload: progress}))
       )
+    })
+    .on('complete', () => {
+      requestsChannel.ack(message)
     })
 }
 
